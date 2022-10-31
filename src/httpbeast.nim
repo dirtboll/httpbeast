@@ -56,7 +56,7 @@ type
     bindAddr*: string
     domain*: Domain
     numThreads*: int
-    loggers*: seq[Logger]
+    loggers*: ref seq[Logger]
       ## a list of loggers to add to any newly created threads.
       ## This is automatically populated in `initSettings`.
     reusePort*: bool
@@ -80,12 +80,15 @@ proc initSettings*(port: Port = Port(8080),
                    domain = Domain.AF_INET,
                    reusePort = true,
                    listenBacklog = SOMAXCONN): Settings =
+  var loggingHandlers: ref seq[Logger]
+  new loggingHandlers
+  loggingHandlers[] = getHandlers()
   Settings(
     port: port,
     bindAddr: bindAddr,
     domain: domain,
     numThreads: numThreads,
-    loggers: getHandlers(),
+    loggers: loggingHandlers,
     reusePort: reusePort,
     listenBacklog: listenBacklog,
   )
@@ -335,7 +338,7 @@ proc eventLoop(
 
   if not isMainThread:
     # We are on a new thread. Re-add the loggers from the main thread.
-    for logger in settings.loggers:
+    for logger in settings.loggers[]:
       addHandler(logger)
 
   let selector = newSelector[Data]()
